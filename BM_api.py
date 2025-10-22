@@ -7,9 +7,11 @@ from typing import Optional
 from urllib.parse import urlencode
 import time
 import aiohttp
+import websockets
 from decimal import Decimal
 
 BASE_URL = 'https://api.btcmarkets.net'
+WS_URI = "wss://socket.btcmarkets.net/v2"
 
 class BTCMarketsAPI:
     _api_key: bytes
@@ -157,3 +159,34 @@ class BTCMarketsAPI:
                     else:
                         raise ValueError(f"HTTP Response code {resp.status}")
 
+    async def run_websocket(self):
+        async with websockets.connect(WS_URI) as websocket:
+            channels = ["orderChange", "heartbeat", "trade"]
+            api_key, api_secret = self._get_secrets()
+            time_in_ms = str(int(time.time() * 1000))
+            string_to_sign = ("/users/self/subscribe" + "\n" + time_in_ms)
+            signature = base64.b64encode(
+                hmac.new(api_secret, string_to_sign.encode('utf-8'), digestmod=hashlib.sha512).digest())
+
+            subscribe_message = {
+                "marketIds":"BTC-AUD",
+                "channels":channels,
+                "timestamp":time_in_ms,
+                "messageType":"subscribe",
+                "key":api_key.decode("utf-8"),
+                "signature":signature.decode('utf8')
+            }
+
+            await websocket.send(json.dumps(subscribe_message))
+            print(f"Connected to BTCMarkets WebSocket")
+
+            # Listen for messages
+            try:
+                async for message in websocket:
+                    message_decode = json.loads(message)
+                    if 'trade' == message_decode.get('messageType', ""):
+                        print(f"trade: {message_decode}")
+                    if 'orderChange' == message_decode.get('messageType', ""):
+                        print(f"orderChange: {message_decode}")
+            except websockets.exceptions.ConnectionClosed:
+                print("Connection closed")
