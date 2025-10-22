@@ -1,7 +1,7 @@
 import unittest
 from decimal import Decimal
 from unittest.mock import patch
-from src.BM_api import BTCMarketsAPI
+from BM_api import BTCMarketsAPI
 
 
 class TestBTCMarketsAPI(unittest.IsolatedAsyncioTestCase):
@@ -33,6 +33,12 @@ class TestBTCMarketsAPI(unittest.IsolatedAsyncioTestCase):
                                               side="Ask")
 
         print(f"test_place_order: {response}")
+
+    async def test_websocket(self):
+        api_key: bytes = b'4229ee2d-6b83-477e-a1ab-502dd1f5052c'
+        api_secret: bytes = b'anVzdCBhIHRlc3QsIG5vIHNlY3JldHMgaGVyZQ=='
+        self.bm_api = BTCMarketsAPI(api_key=api_key, api_secret=api_secret)
+        response = await self.bm_api.run_websocket()
 
 
 if __name__ == '__main__':
